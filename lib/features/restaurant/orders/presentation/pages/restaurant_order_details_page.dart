@@ -4,6 +4,8 @@ import '../../../../customer/checkout/domain/entities/order_entity.dart';
 import '../../data/repositories/firebase_restaurant_order_repository.dart';
 import '../cubit/restaurant_orders_cubit.dart';
 import '../cubit/restaurant_orders_state.dart';
+import '../../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../../auth/presentation/cubit/auth_state.dart';
 
 class RestaurantOrderDetailsPage extends StatelessWidget {
   final String orderId;
@@ -17,10 +19,16 @@ class RestaurantOrderDetailsPage extends StatelessWidget {
     // Instead, we just instantiate a new cubit for this specific order/restaurant if needed, 
     // or better, since we have the order details passed or we can listen to the stream.
     // Wait, we need the Cubit to update status. 
+    final authState = context.read<AuthCubit>().state;
+    String restaurantId = 'restaurant_demo_1';
+    if (authState is Authenticated) {
+      restaurantId = authState.user.restaurantId ?? authState.user.uid;
+    }
+
     return BlocProvider(
       create: (context) => RestaurantOrdersCubit(
         repository: FirebaseRestaurantOrderRepository(),
-        restaurantId: 'rest_1', // TODO: Auth
+        restaurantId: restaurantId,
       ),
       child: _RestaurantOrderDetailsView(orderId: orderId),
     );

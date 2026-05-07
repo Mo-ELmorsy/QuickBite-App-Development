@@ -6,14 +6,19 @@ import '../../data/repositories/firebase_restaurant_order_repository.dart';
 import '../cubit/restaurant_orders_cubit.dart';
 import '../cubit/restaurant_orders_state.dart';
 import 'package:intl/intl.dart';
+import '../../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../../auth/presentation/cubit/auth_state.dart';
 
 class RestaurantDashboardPage extends StatelessWidget {
   const RestaurantDashboardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Real restaurantId from auth
-    const restaurantId = 'rest_1';
+    final authState = context.read<AuthCubit>().state;
+    String restaurantId = 'restaurant_demo_1';
+    if (authState is Authenticated) {
+      restaurantId = authState.user.restaurantId ?? authState.user.uid;
+    }
 
     return BlocProvider(
       create: (context) => RestaurantOrdersCubit(

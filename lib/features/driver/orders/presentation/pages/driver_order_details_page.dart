@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../customer/checkout/domain/entities/order_entity.dart';
 import '../../data/repositories/firebase_driver_order_repository.dart';
 import '../cubit/driver_orders_cubit.dart';
@@ -13,7 +14,7 @@ class DriverOrderDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const driverId = 'driver_1'; // TODO: Auth
+    final driverId = FirebaseAuth.instance.currentUser?.uid ?? 'driver_1';
 
     return BlocProvider(
       create: (context) => DriverOrdersCubit(

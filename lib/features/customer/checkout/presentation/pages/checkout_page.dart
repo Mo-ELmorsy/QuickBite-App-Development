@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../../cart/presentation/bloc/cart_state.dart';
@@ -144,8 +145,8 @@ class CheckoutPage extends StatelessWidget {
                       onPressed: isLoading ? null : () {
                         final order = OrderEntity(
                           id: '', // Empty ID tells Firestore to generate one
-                          userId: 'user_123', // Mock user ID
-                          restaurantId: 'rest_1', // Mock restaurant ID
+                          userId: FirebaseAuth.instance.currentUser?.uid ?? 'user_123',
+                          restaurantId: 'restaurant_demo_1', // Mock restaurant ID
                           items: cartState.items,
                           status: 'confirmed',
                           subtotal: cartState.subtotal,

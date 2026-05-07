@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/repositories/firebase_driver_order_repository.dart';
 import '../cubit/driver_orders_cubit.dart';
 import '../cubit/driver_orders_state.dart';
@@ -11,8 +12,7 @@ class DriverDashboardPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Real currentDriverId from FirebaseAuth.instance.currentUser.uid
-    const driverId = 'driver_1';
+    final driverId = FirebaseAuth.instance.currentUser?.uid ?? 'driver_1';
 
     return BlocProvider(
       create: (context) => DriverOrdersCubit(
