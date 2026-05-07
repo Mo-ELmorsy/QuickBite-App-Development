@@ -6,6 +6,9 @@ import '../../../../customer/checkout/domain/entities/order_entity.dart';
 import '../../data/repositories/firebase_driver_order_repository.dart';
 import '../cubit/driver_orders_cubit.dart';
 import '../cubit/driver_orders_state.dart';
+import '../../../../../core/services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class DriverOrderDetailsPage extends StatelessWidget {
   final String orderId;
@@ -146,7 +149,18 @@ class _DriverOrderDetailsView extends StatelessWidget {
         color: Colors.white,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
-          onPressed: () => cubit.acceptDelivery(order.id),
+          onPressed: () async {
+            final locationService = LocationService();
+            final permission = await locationService.checkPermission();
+            if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+              final newPermission = await locationService.requestPermission();
+              if (newPermission == LocationPermission.denied || newPermission == LocationPermission.deniedForever) {
+                Fluttertoast.showToast(msg: 'Location permission is required to accept deliveries');
+                return;
+              }
+            }
+            cubit.acceptDelivery(order.id);
+          },
           child: const Text('Accept Delivery'),
         ),
       );

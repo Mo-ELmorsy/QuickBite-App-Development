@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return getUserData().role == role;
+    }
+
+    function getRestaurantId() {
+      return getUserData().restaurantId;
+    }
+
+    function isUpdatedAtChanged() {
+      return request.resource.data.updatedAt != resource.data.updatedAt;
+    }
+
+    // --- Users Collection ---
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.uid == uid;
+      allow update: if isOwner(uid) && 
+        isUpdatedAtChanged() &&
+        // Prevent changing immutable fields
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.restaurantId == resource.data.restaurantId &&
+        request.resource.data.driverId == resource.data.driverId &&
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    // --- Restaurants Collection ---
+    match /restaurants/{restaurantId} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.ownerId) || 
+        (hasRole('restaurant') && getRestaurantId() == restaurantId)
+      ) && 
+      isUpdatedAtChanged() &&
+      // Only allow updating specific operational fields
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isOpen', 'updatedAt']);
+    }
+
+    // --- Menus Collection ---
+    match /menus/{restaurantId}/items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && hasRole('restaurant') && getRestaurantId() == restaurantId;
+    }
+
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) || 
+        (hasRole('restaurant') && getRestaurantId() == resource.data.restaurantId) ||
+        (hasRole('driver') && (resource.data.driverId == null || resource.data.driverId == request.auth.uid))
+      );
+
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'confirmed';
+
+      allow update: if isAuthenticated() && isUpdatedAtChanged() && (
+        // Restaurant status updates
+        (hasRole('restaurant') && getRestaurantId() == resource.data.restaurantId && (
+          (resource.data.status == 'confirmed' && (request.resource.data.status == 'preparing' || request.resource.data.status == 'rejected')) ||
+          (resource.data.status == 'preparing' && request.resource.data.status == 'readyForPickup')
+        ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'timestamps'])) ||
+
+        // Driver accepting order
+        (hasRole('driver') && resource.data.status == 'readyForPickup' && resource.data.driverId == null &&
+          request.resource.data.driverId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['driverId', 'updatedAt'])) ||
+
+        // Driver status updates
+        (hasRole('driver') && resource.data.driverId == request.auth.uid && (
+          (resource.data.status == 'readyForPickup' && request.resource.data.status == 'onTheWay') ||
+          (resource.data.status == 'onTheWay' && request.resource.data.status == 'delivered')
+        ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'timestamps']))
+      );
+    }
+
+    // --- Drivers Collection ---
+    match /drivers/{uid} {
+      allow read: if isAuthenticated() && (
+        isOwner(uid) ||
+        // Allow customer to see their assigned driver
+        (hasRole('customer') && exists(/databases/$(database)/documents/orders/$(getUserData().currentOrderId)) && 
+         get(/databases/$(database)/documents/orders/$(getUserData().currentOrderId)).data.driverId == uid) ||
+        // Allow restaurant to see assigned driver
+        (hasRole('restaurant') && exists(/databases/$(database)/documents/orders/$(getUserData().currentOrderId)) && 
+         get(/databases/$(database)/documents/orders/$(getUserData().currentOrderId)).data.restaurantId == getRestaurantId())
+      );
+      allow write: if isOwner(uid);
+    }
+  }
+}

@@ -7,6 +7,7 @@ import '../../../checkout/domain/entities/order_entity.dart';
 import '../../../checkout/data/repositories/firebase_order_repository.dart';
 import '../../../../driver/orders/domain/entities/driver_entity.dart';
 import '../../../../driver/orders/data/models/driver_model.dart';
+import '../../../../../core/services/directions_service.dart';
 
 class TrackingPage extends StatefulWidget {
   final String orderId;
@@ -21,6 +22,13 @@ class _TrackingPageState extends State<TrackingPage> {
   final Completer<GoogleMapController> _controller = Completer();
   late final FirebaseOrderRepository _repository;
   late final Stream<OrderEntity> _orderStream;
+  late final DirectionsService _directionsService;
+  
+  Set<Polyline> _polylines = {};
+  String _distance = '';
+  String _duration = '';
+  LatLng? _lastOrigin;
+  LatLng? _lastDestination;
   
 
   @override
@@ -28,6 +36,44 @@ class _TrackingPageState extends State<TrackingPage> {
     super.initState();
     _repository = FirebaseOrderRepository();
     _orderStream = _repository.getOrderStream(widget.orderId);
+    _directionsService = DirectionsService();
+  }
+
+  Future<void> _updateRoute(LatLng origin, LatLng destination) async {
+    // Avoid redundant API calls if locations haven't changed much
+    if (_lastOrigin == origin && _lastDestination == destination) return;
+    
+    final route = await _directionsService.getRoutePolyline(
+      origin: origin,
+      destination: destination,
+    );
+
+    if (route != null && mounted) {
+      setState(() {
+        _lastOrigin = origin;
+        _lastDestination = destination;
+        _distance = route.distanceText;
+        _duration = route.durationText;
+        _polylines = {
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: route.points,
+            color: Colors.orange,
+            width: 5,
+          ),
+        };
+      });
+
+      // Fit camera to bounds
+      final GoogleMapController controller = await _controller.future;
+      LatLngBounds bounds;
+      if (origin.latitude > destination.latitude) {
+        bounds = LatLngBounds(southwest: destination, northeast: origin);
+      } else {
+        bounds = LatLngBounds(southwest: origin, northeast: destination);
+      }
+      controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    }
   }
 
   int _getStepFromStatus(String status) {
@@ -76,6 +122,17 @@ class _TrackingPageState extends State<TrackingPage> {
                 driverLatLng = LatLng(driver!.latitude!, driver.longitude!);
               }
 
+              // Locations for route
+              final restaurantLatLng = const LatLng(37.7749, -122.4194); // Mock restaurant
+              final customerLatLng = const LatLng(37.7849, -122.4094); // Mock customer
+
+              // Determine route points
+              if (order.status == 'onTheWay') {
+                _updateRoute(driverLatLng, customerLatLng);
+              } else if (order.status != 'delivered') {
+                _updateRoute(restaurantLatLng, customerLatLng);
+              }
+
               return Stack(
                 children: [
                   GoogleMap(
@@ -86,12 +143,25 @@ class _TrackingPageState extends State<TrackingPage> {
                         _controller.complete(controller);
                       }
                     },
+                    polylines: _polylines,
                     markers: {
                       Marker(
                         markerId: const MarkerId('driver'),
                         position: driverLatLng,
                         infoWindow: const InfoWindow(title: 'Driver Location'),
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                      ),
+                      Marker(
+                        markerId: const MarkerId('restaurant'),
+                        position: restaurantLatLng,
+                        infoWindow: const InfoWindow(title: 'Restaurant'),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                      ),
+                      Marker(
+                        markerId: const MarkerId('customer'),
+                        position: customerLatLng,
+                        infoWindow: const InfoWindow(title: 'Your Location'),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                       ),
                     },
                   ),
@@ -134,7 +204,19 @@ class _TrackingPageState extends State<TrackingPage> {
                             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
                           ),
                           const SizedBox(height: 8),
-                          Text('Status: ${order.status.toUpperCase()}', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Status: ${order.status.toUpperCase()}', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                              if (_duration.isNotEmpty)
+                                Text('ETA: $_duration ($_distance)', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                            ],
+                          ),
+                          if (const String.fromEnvironment('GOOGLE_MAPS_API_KEY').isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8.0),
+                              child: Text('Route unavailable, showing live location only.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                            ),
                           const SizedBox(height: 24),
                           Row(
                             children: [

@@ -87,3 +87,40 @@ Or via IDE configurations by passing `--dart-define=STRIPE_PUBLISHABLE_KEY=...`
 2. Run `flutter pub get` to fetch dependencies.
 3. Setup Firebase and `.env` as described above.
 4. Run `flutter run` on your preferred device.
+
+---
+
+## 🔒 Firebase Security Rules
+
+This project includes production-oriented security rules for Firestore and Firebase Storage to ensure that users, restaurants, and drivers only access and modify data relevant to their roles.
+
+### Key Security Features
+- **Role-Based Access**: Customers can only place orders for themselves; restaurants can only manage their own orders and menus; drivers can only view available orders and update orders assigned to them.
+- **Immutable Fields**: Critical user fields like `role`, `restaurantId`, and `driverId` cannot be modified after user creation.
+- **Strict Status Transitions**: Order status can only be updated through logical steps (e.g., `confirmed` → `preparing` → `readyForPickup`).
+- **Secure Drivers Data**: Drivers' locations and availability are only visible to the relevant customer and restaurant for an active order.
+
+### How to Deploy Rules
+
+Ensure you have the [Firebase CLI](https://firebase.google.com/docs/cli) installed and initialized.
+
+1. Login to your Firebase account:
+   ```bash
+   firebase login
+   ```
+
+2. Initialize Firebase in your project if you haven't (select Firestore and Storage):
+   ```bash
+   firebase init
+   ```
+
+3. Deploy the rules using the following command:
+   ```bash
+   # Deploy Firestore rules
+   firebase deploy --only firestore:rules
+
+   # Deploy Storage rules
+   firebase deploy --only storage
+   ```
+
+Alternatively, you can copy the contents of `firestore.rules` and `storage.rules` directly into the "Rules" tab of the Firestore and Storage sections in the [Firebase Console](https://console.firebase.google.com/).
