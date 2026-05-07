@@ -4,7 +4,8 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/customer/home/presentation/pages/customer_home_page.dart';
 import '../../features/restaurant/orders/presentation/pages/restaurant_dashboard_page.dart';
 import '../../features/restaurant/orders/presentation/pages/restaurant_order_details_page.dart';
-import '../../features/driver/presentation/pages/driver_home_page.dart';
+import '../../features/driver/orders/presentation/pages/driver_dashboard_page.dart';
+import '../../features/driver/orders/presentation/pages/driver_order_details_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/customer/cart/presentation/pages/cart_page.dart';
 import '../../features/customer/restaurant/presentation/pages/restaurant_menu_page.dart';
@@ -44,7 +45,18 @@ class AppRouter {
       ),
       GoRoute(
         path: '/driver_home',
-        builder: (context, state) => const DriverHomePage(),
+        builder: (context, state) => const DriverDashboardPage(),
+      ),
+      GoRoute(
+        path: '/driver/dashboard',
+        builder: (context, state) => const DriverDashboardPage(),
+      ),
+      GoRoute(
+        path: '/driver/orders/:orderId',
+        builder: (context, state) {
+          final id = state.pathParameters['orderId'] ?? '';
+          return DriverOrderDetailsPage(orderId: id);
+        },
       ),
       GoRoute(
         path: '/cart',
