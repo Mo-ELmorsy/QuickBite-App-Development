@@ -11,6 +11,9 @@ import '../../features/customer/cart/presentation/pages/cart_page.dart';
 import '../../features/customer/restaurant/presentation/pages/restaurant_menu_page.dart';
 import '../../features/customer/checkout/presentation/pages/checkout_page.dart';
 import '../../features/customer/tracking/presentation/pages/tracking_page.dart';
+import '../../features/restaurant/menu/presentation/pages/restaurant_menu_management_page.dart';
+import '../../features/restaurant/menu/presentation/pages/add_edit_menu_item_page.dart';
+import '../../features/restaurant/menu/domain/entities/menu_item_entity.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -41,6 +44,21 @@ class AppRouter {
         builder: (context, state) {
           final id = state.pathParameters['orderId'] ?? '';
           return RestaurantOrderDetailsPage(orderId: id);
+        },
+      ),
+      GoRoute(
+        path: '/restaurant/menu',
+        builder: (context, state) => const RestaurantMenuManagementPage(),
+      ),
+      GoRoute(
+        path: '/restaurant/menu/add',
+        builder: (context, state) => const AddEditMenuItemPage(),
+      ),
+      GoRoute(
+        path: '/restaurant/menu/edit/:itemId',
+        builder: (context, state) {
+          final item = state.extra as MenuItemEntity?;
+          return AddEditMenuItemPage(item: item);
         },
       ),
       GoRoute(

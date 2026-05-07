@@ -92,6 +92,23 @@ class _RestaurantDashboardView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Card(
+                        child: ListTile(
+                          onTap: () => context.push('/restaurant/menu'),
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.orange,
+                            child: Icon(Icons.restaurant_menu, color: Colors.white),
+                          ),
+                          title: const Text('Manage Menu', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Add, edit or remove items'),
+                          trailing: const Icon(Icons.chevron_right),
+                        ),
+                      ),
+                    ),
+                  ),
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),

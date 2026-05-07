@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../../cart/presentation/bloc/cart_bloc.dart';
 import '../../../cart/presentation/bloc/cart_event.dart';
 import '../../../cart/presentation/bloc/cart_state.dart';
+import '../../../../restaurant/menu/presentation/cubit/menu_cubit.dart';
+import '../../../../restaurant/menu/presentation/cubit/menu_state.dart';
+import '../../../../restaurant/menu/data/repositories/firebase_menu_repository.dart';
 
 class RestaurantMenuPage extends StatelessWidget {
   final String restaurantId;
@@ -12,133 +15,159 @@ class RestaurantMenuPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 200.0,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Sample Restaurant', style: TextStyle(color: Colors.white, textBaseline: TextBaseline.alphabetic, shadows: [Shadow(color: Colors.black, blurRadius: 4)])),
-              background: Container(
-                color: Colors.grey.shade400,
-                child: const Center(child: Icon(Icons.restaurant, size: 80, color: Colors.white)),
+    return BlocProvider(
+      create: (context) => MenuCubit(
+        repository: FirebaseMenuRepository(),
+        restaurantId: restaurantId,
+      )..loadMenu(),
+      child: _RestaurantMenuView(restaurantId: restaurantId),
+    );
+  }
+}
+
+class _RestaurantMenuView extends StatelessWidget {
+  final String restaurantId;
+  const _RestaurantMenuView({required this.restaurantId});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<MenuCubit, MenuState>(
+      builder: (context, menuState) {
+        return Scaffold(
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 200.0,
+                pinned: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text('Restaurant Menu', style: TextStyle(color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 4)])),
+                  background: Container(
+                    color: Colors.grey.shade400,
+                    child: const Center(child: Icon(Icons.restaurant, size: 80, color: Colors.white)),
+                  ),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: () {},
+                  )
+                ],
               ),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {},
-              )
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.star, color: Colors.orange),
+                          Text(' 4.5 (100+ ratings) • Burger • American'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Row(
+                        children: [
+                          Icon(Icons.access_time, color: Colors.grey),
+                          Text(' 20-30 min  •  Free delivery', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.orange),
+                            SizedBox(width: 8),
+                            Text('Currently very busy. Expect slight delays.', style: TextStyle(color: Colors.orange)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (menuState is MenuLoaded && menuState.groupedItems.isNotEmpty) ...[
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _SliverAppBarDelegate(
+                    TabBar(
+                      labelColor: Colors.orange,
+                      unselectedLabelColor: Colors.grey,
+                      indicatorColor: Colors.orange,
+                      isScrollable: true,
+                      tabs: menuState.groupedItems.keys.map((cat) => Tab(text: cat)).toList(),
+                    ),
+                  ),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final allItems = menuState.items.where((i) => i.isAvailable).toList();
+                      if (index >= allItems.length) return null;
+                      final item = allItems[index];
+                      return MenuItemCard(
+                        id: item.id,
+                        name: item.name,
+                        description: item.description,
+                        price: item.price,
+                      );
+                    },
+                    childCount: menuState.items.where((i) => i.isAvailable).length,
+                  ),
+                ),
+              ] else if (menuState is MenuLoading) ...[
+                const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+              ] else ...[
+                const SliverFillRemaining(
+                  child: Center(child: Text('No items available in this menu yet.', style: TextStyle(color: Colors.grey))),
+                )
+              ],
             ],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.orange),
-                      Text(' 4.5 (100+ ratings) • Burger • American'),
+          bottomNavigationBar: BlocBuilder<CartBloc, CartState>(
+            builder: (context, state) {
+              if (state is CartUpdated && state.items.isNotEmpty) {
+                final cartState = state;
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  const Row(
-                    children: [
-                      Icon(Icons.access_time, color: Colors.grey),
-                      Text(' 20-30 min  •  Free delivery', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
                     ),
-                    child: const Row(
+                    onPressed: () => context.push('/cart'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.info_outline, color: Colors.orange),
-                        SizedBox(width: 8),
-                        Text('Currently very busy. Expect slight delays.', style: TextStyle(color: Colors.orange)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4)),
+                          child: Text('${cartState.items.fold<int>(0, (p, c) => p + c.quantity)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        const Text('View Cart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('\$${cartState.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _SliverAppBarDelegate(
-              TabBar(
-                labelColor: Colors.orange,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.orange,
-                isScrollable: true,
-                tabs: const [
-                  Tab(text: 'Popular'),
-                  Tab(text: 'Burgers'),
-                  Tab(text: 'Sides'),
-                  Tab(text: 'Drinks'),
-                ],
-              ),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return MenuItemCard(
-                  id: 'item_$index',
-                  name: 'Signature Burger $index',
-                  description: 'Juicy beef patty with special sauce, lettuce, and cheese.',
-                  price: 12.99 + index,
                 );
-              },
-              childCount: 10,
-            ),
+              }
+              return const SizedBox.shrink();
+            },
           ),
-        ],
-      ),
-      bottomNavigationBar: BlocBuilder<CartBloc, CartState>(
-        builder: (context, state) {
-          if (state is CartUpdated && state.items.isNotEmpty) {
-            final cartState = state;
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -5)),
-                ],
-              ),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => context.push('/cart'),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(4)),
-                      child: Text('${cartState.items.fold<int>(0, (p, c) => p + c.quantity)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                    const Text('View Cart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text('\$${cartState.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        },
-      ),
+        );
+      },
     );
   }
 }
